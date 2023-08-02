@@ -112,6 +112,61 @@ typedef struct st_quicly_cc_t {
              */
             int64_t last_sent_time;
         } cubic;
+
+        /**
+         * State information for WRC congestion control.
+         */
+        struct {
+            /*
+                * WRC congestion control state
+            */
+             /**
+             * Previous congestion window size.
+             */
+            u32 cwnd_prev;
+
+            /**
+             * Initial Round-Trip Time.
+             */
+            u32 rtt_init;
+
+            /**
+             * Congestion window slope.
+             */
+            s32 cwndslope;
+
+            /**
+             * Minimum Round-Trip Time.
+             */
+            u32 rtt_minimum;
+
+            /**
+             * RTT counter.
+             */
+            u64 rtt_cnt;
+
+            /**
+             * Start time.
+             */
+            u32 start_tm;
+
+            /**
+             * Maximum value for the congestion window clamp.
+             */
+            uint32_t snd_cwnd_clamp_max;
+            /**
+             * Minimum value for the congestion window clamp.
+             */
+            uint32_t snd_cwnd_clamp_min;
+            /**
+             * Threshold or marker for a high value of round-trip time (RTT).
+             */
+            uint32_t rtt_high_water_marker;
+            /**
+             * Threshold or marker for a low value of round-trip time (RTT).
+             */
+            uint32_t rtt_low_water_marker;
+        } wrc;
     } state;
     /**
      * Initial congestion window.
@@ -129,6 +184,12 @@ typedef struct st_quicly_cc_t {
      * Maximum congestion window during the connection.
      */
     uint32_t cwnd_maximum;
+
+    /**
+     * congestion window clamp.
+     */
+    uint32_t cwnd_clamp;
+
     /**
      * Total number of number of loss episodes (congestion window reductions).
      */
@@ -172,11 +233,11 @@ struct st_quicly_cc_type_t {
 /**
  * The type objects for each CC. These can be used for testing the type of each `quicly_cc_t`.
  */
-extern quicly_cc_type_t quicly_cc_type_reno, quicly_cc_type_cubic, quicly_cc_type_pico;
+extern quicly_cc_type_t quicly_cc_type_reno, quicly_cc_type_cubic, quicly_cc_type_pico, quicly_cc_type_wrc; //Make changes here to add wrc
 /**
  * The factory methods for each CC.
  */
-extern struct st_quicly_init_cc_t quicly_cc_reno_init, quicly_cc_cubic_init, quicly_cc_pico_init;
+extern struct st_quicly_init_cc_t quicly_cc_reno_init, quicly_cc_cubic_init, quicly_cc_pico_init, quicly_cc_wrc_init; //Make changes here to add wrc
 
 /**
  * A null-terminated list of all CC types.
