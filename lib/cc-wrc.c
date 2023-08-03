@@ -1,24 +1,4 @@
 /*
- * Copyright (c) 2019 Fastly, Janardhan Iyengar
- * Copyright (c) 2020 RWTH Aachen University, COMSYS Network Architectures Group, Leo Blöcher
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to
- * deal in the Software without restriction, including without limitation the
- * rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
- * sell copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
- * IN THE SOFTWARE.
  */
 #include <math.h>
 #include "quicly/cc.h"
@@ -62,53 +42,6 @@ static uint32_t calc_w_est(const quicly_cc_t *cc, cubic_float_t t_sec, cubic_flo
 /* TODO: Avoid increase if sender was application limited. */
 #define max(a,b) ((a) > (b) ? (a) : (b))
 #define min(a,b) ((a) < (b) ? (a) : (b))
-
-// static void wrc_on_acked(quicly_cc_t *cc, const quicly_loss_t *loss, uint32_t bytes, uint64_t largest_acked, uint32_t inflight,
-//                            uint64_t next_pn, int64_t now, uint32_t max_udp_payload_size)
-// {
-//      assert(inflight >= bytes);
-
-//     /* Do not increase congestion window while in recovery. */
-//     if (largest_acked < cc->recovery_end)
-//         return;
-
-//     /* Compute current RTT in ms */
-//     int32_t rtt_ms = loss->rtt.smoothed / 1000; //ms -> s/
-  
-//     if (rtt_ms <= 0) {
-//         /* rtt is not valid */
-//         return;
-//     }
-
-//     /* Update the WRC state based on current RTT */
-//     if (rtt_ms < cc->state.wrc.rtt_low_water_marker) {
-//         cc->state.wrc.rtt_low_water_marker = rtt_ms;
-//     }else if (rtt_ms > cc->state.wrc.rtt_high_water_marker) {
-//         cc->state.wrc.rtt_high_water_marker = rtt_ms;
-//     }
-
-//     /* Adjust cwnd clamp boundaries based on the WRC state */ 
-//     //TODO: These functionalities are not implemented in the current version
-//     cc->state.wrc.snd_cwnd_clamp_min = max(cc->state.wrc.snd_cwnd_clamp_min, min_clamp);
-//     cc->state.wrc.snd_cwnd_clamp_max = min(cc->state.wrc.snd_cwnd_clamp_max, max_clamp);
-
-//     /* Update congestion window and slow start threshold */
-//     if (cc->cwnd < cc->ssthresh) {
-//         /* Slow start. */
-//         cc->cwnd += bytes;
-//         cc->cwnd = min(cc->cwnd, cc->state.wrc.snd_cwnd_clamp_max); /* Apply max clamp Not sure if this is requried*/ 
-//     } else {
-//         /* Congestion avoidance. */
-//         cc->cwnd = adjust_congestion_window(cc, rtt_ms, max_udp_payload_size); 
-//         /* adjust_congestion_window() is a placeholder for your actual congestion control function */
-//         cc->cwnd = max(cc->cwnd, cc->state.wrc.snd_cwnd_clamp_min); /* Apply min clamp */
-//     }
-
-//     if (cc->cwnd_maximum < cc->cwnd)
-//         cc->cwnd_maximum = cc->cwnd;
-  
-// }
-
 
 static inline u32 get_rtt_high_watermarker(u32 rtt_ms) {
 	const u32 eleven_rtt = rtt_ms * rtt_high_factor;
@@ -157,55 +90,6 @@ static inline void rbc_calculate_boundary(quicly_cc_t *cc, int32_t rtt_ms){
 	 cc->state.wrc.rtt_low_water_marker = get_rtt_low_watermarker(rtt_ms);
 	 cc->state.wrc.cwndslope = get_maxcwnd_rtt_slope(cc->state.wrc.rtt_high_water_marker, cc->state.wrc.rtt_low_water_marker);
 	return;
-}
-
-static inline u32 rbc_lpf_srtt(quicly_cc_t *cc, s32 rtt_ms, u32 srtt_prev)
-{
-
-	u32 srtt_crnt = srtt_prev;
-	u32 maxweight = rbc_rtt_max_weight;
-
-	const u32 rtt_lowvaluemarker = cc->state.wrc.rtt_low_water_marker;
-	const u32 rtt_highvaluemarker = cc->state.wrc.rtt_high_water_marker;
-
-	if (rtt_ms <= 0) {
-		return srtt_crnt;
-	}
-
-	if (rtt_ms > tcp_rbc_lpf_rtt_thresh) {
-		u32 weight = tcp_rbc_rtt_ewma_light_weight;
-		srtt_crnt =
-			(srtt_prev * (maxweight - weight) +
-			 rtt_ms * weight) / maxweight;
-		return srtt_crnt;
-	}
-
-	if (srtt_prev < rtt_lowvaluemarker) {
-		u32 weight = tcp_rbc_rtt_ewma_heavy_weight;
-		srtt_crnt =
-			(srtt_prev * (maxweight - weight) +
-			 rtt_ms * weight) / maxweight;
-		return srtt_crnt;
-	}
-
-	if ((srtt_prev >= rtt_lowvaluemarker)
-	    && (srtt_prev < rtt_highvaluemarker)) {
-		u32 weight = tcp_rbc_rtt_ewma_weight;
-		srtt_crnt =
-			(srtt_prev * (maxweight - weight) +
-			 rtt_ms * weight) / maxweight;
-		return srtt_crnt;
-	}
-
-	if (srtt_prev >= rtt_highvaluemarker) {
-		u32 weight = tcp_rbc_rtt_ewma_heavy_weight;
-		srtt_crnt =
-			(srtt_prev * (maxweight - weight) +
-			 rtt_ms * weight) / maxweight;
-		return srtt_crnt;
-	}
-
-	return srtt_crnt;
 }
 
 static inline u32 get_cwnd_lbound_sgmnts(u32 mss)
@@ -306,13 +190,9 @@ static void wrc_on_acked(quicly_cc_t *cc, const quicly_loss_t *loss, uint32_t by
     debug_info:
         printf("Debug Info\n");
 
-
     //TODO: Quick start/slow start/Congestion Avoidance. 
 
-
 }
-
-
 
 
 static void cubic_on_lost(quicly_cc_t *cc, const quicly_loss_t *loss, uint32_t bytes, uint64_t lost_pn, uint64_t next_pn,
@@ -372,7 +252,7 @@ static void cubic_on_sent(quicly_cc_t *cc, const quicly_loss_t *loss, uint32_t b
     cc->state.cubic.last_sent_time = now;
 }
 
-static void cubic_reset(quicly_cc_t *cc, uint32_t initcwnd)
+static void wrc_reset(quicly_cc_t *cc, uint32_t initcwnd)
 {
     memset(cc, 0, sizeof(quicly_cc_t));
     cc->type = &quicly_cc_type_wrc;
@@ -413,9 +293,17 @@ static int cubic_on_switch(quicly_cc_t *cc)
 
 static void wrc_init(quicly_init_cc_t *self, quicly_cc_t *cc, uint32_t initcwnd, int64_t now)
 {
-    cubic_reset(cc, initcwnd);
+    wrc_reset(cc, initcwnd);
 }
 
 quicly_cc_type_t quicly_cc_type_wrc = {
-    "wrc", &quicly_cc_wrc_init, wrc_on_acked, cubic_on_lost, cubic_on_persistent_congestion, cubic_on_sent, cubic_on_switch};
+    "wrc", 
+    &quicly_cc_wrc_init, 
+    wrc_on_acked, 
+    wrc_on_lost, 
+    wrc_on_persistent_congestion, 
+    wrc_on_sent, 
+    wrc_on_switch
+};
+
 quicly_init_cc_t quicly_cc_wrc_init = {wrc_init};
