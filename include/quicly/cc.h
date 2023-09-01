@@ -123,32 +123,32 @@ typedef struct st_quicly_cc_t {
              /**
              * Previous congestion window size.
              */
-            u32 cwnd_prev;
+            uint32_t cwnd_prev;
 
             /**
              * Initial Round-Trip Time.
              */
-            u32 rtt_init;
+            uint32_t rtt_init;
 
             /**
              * Congestion window slope.
              */
-            s32 cwndslope;
+            int32_t cwnd_slope;
 
             /**
              * Minimum Round-Trip Time.
              */
-            u32 rtt_minimum;
+            uint32_t rtt_minimum;
 
             /**
              * RTT counter.
              */
-            u64 rtt_cnt;
+            uint64_t rtt_cnt;
 
             /**
              * Start time.
              */
-            u32 start_tm;
+            uint32_t start_tm;
 
             /**
              * Maximum value for the congestion window clamp.
@@ -166,6 +166,14 @@ typedef struct st_quicly_cc_t {
              * Threshold or marker for a low value of round-trip time (RTT).
              */
             uint32_t rtt_low_water_marker;
+            /**
+             * Timestamp of the latest congestion event.
+             */
+            int64_t avoidance_start;
+            /**
+             * Timestamp of the most recent send operation.
+             */
+            int64_t last_sent_time;
         } wrc;
     } state;
     /**
